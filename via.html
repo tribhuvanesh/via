@@ -623,6 +623,23 @@
               <td>Spacebar</td>
               <td>Toggle image list</td>
             </tr>
+
+            <tr>
+              <td>0,1,2,...,9</td>
+              <td>Mark selected regions as a particular instance</td>
+            </tr>
+            <tr>
+              <td>c</td>
+              <td>Mark selected regions as crowd</td>
+            </tr>
+            <tr>
+              <td>r</td>
+              <td>Mark selected regions as part of a relationship</td>
+            </tr>
+            <tr>
+              <td>u</td>
+              <td>Mark selected regions as unsure</td>
+            </tr>
           </table>
         </div>
 
@@ -875,7 +892,7 @@ var _via_is_region_id_visible        = true;
 var _via_is_region_boundary_visible  = true;
 
 // region
-var _via_current_shape             = VIA_REGION_SHAPE.RECT;
+var _via_current_shape             = VIA_REGION_SHAPE.POLYGON;
 var _via_current_polygon_region_id = -1;
 var _via_user_sel_region_id        = -1;
 var _via_click_x0 = 0; var _via_click_y0 = 0;
@@ -883,6 +900,38 @@ var _via_click_x1 = 0; var _via_click_y1 = 0;
 var _via_region_click_x, _via_region_click_y;
 var _via_copied_image_regions = [];
 var _via_region_edge          = [-1, -1];
+
+// Custom attribute keys
+var def_region_attr_keys = new Set(['unsure', 'instance_id', 'relation', 'is_crowd']);
+var def_file_attr_keys = new Set(['unsure', 'crowd_6-10', 'crowd_10+']);
+
+// Some colors
+var region_color_palette = ['#ff004d',
+    '#a6afff',
+    '#915e6e',
+    '#0066ff',
+    '#918300',
+    '#ff0099',
+    '#00b3ff',
+    '#ff9900',
+    '#910057',
+    '#ffdba6',
+    '#ff00e5',
+    '#009191',
+    '#917d5e',
+    '#ffa6f6',
+    '#b8ffa6',
+    '#ff4d00',
+    '#740091',
+    '#69915e',
+    '#ffc1a6',
+    '#785e91',
+    '#7fff00',
+    '#910000',
+    '#3300ff',
+    '#499100',
+    '#ffa6a6'
+    '#ffe600',];
 
 // message
 var _via_message_clear_timer;
@@ -904,7 +953,6 @@ var _via_loaded_img_fn_list = [];
 var _via_loaded_img_region_attr_miss_count = [];
 var _via_loaded_img_file_attr_miss_count = [];
 var _via_loaded_img_table_html = [];
-
 
 // UI html elements
 var invisible_file_input = document.getElementById("invisible_file_input");
@@ -1570,7 +1618,7 @@ function pack_via_metadata(return_type) {
             }
             _via_img_metadata_as_obj[image_id] = image_data;
         }
-        return [JSON.stringify(_via_img_metadata_as_obj)];
+        return [JSON.stringify(_via_img_metadata_as_obj, null, "\t")];
     }
 }
 
@@ -1675,6 +1723,7 @@ function show_image(image_index) {
             _via_user_sel_region_id = -1;
             _via_current_image_width = _via_current_image.naturalWidth;
             _via_current_image_height = _via_current_image.naturalHeight;
+            _via_draw_head_loaded = false;
 
             // set the size of canvas
             // based on the current dimension of browser window
@@ -2832,6 +2881,27 @@ function _via_redraw_img_canvas() {
     }
 }
 
+function _via_draw_head_canvas() {
+    if (_via_current_image_loaded) {
+        head_img = new Image();
+        head_img.src = 'img/putin_face.png';
+        head_org_w = head_img.naturalWidth;
+        head_org_h = head_img.naturalHeight;
+        img_w = _via_current_image.naturalWidth;
+        img_h = _via_current_image.naturalHeight;
+        // New reference width = 5% of image
+        head_new_w = img_w / 25;
+        head_new_h = head_org_h * (head_new_w/head_org_w);
+        // show_message('x: ' + _via_current_x + '    y: ' + _via_current_y);
+        _via_img_ctx.drawImage(head_img,
+                                _via_current_x - head_new_w/2,
+                                _via_current_y - head_new_h/2,
+                                head_new_w,
+                                head_new_h);
+        _via_draw_head_loaded = true;
+    }
+}
+
 function _via_redraw_reg_canvas() {
     if (_via_current_image_loaded) {
         if ( _via_canvas_regions.length > 0 ) {
@@ -2855,6 +2925,25 @@ function draw_all_regions() {
     for (var i=0; i < _via_canvas_regions.length; ++i) {
         var attr = _via_canvas_regions[i].shape_attributes;
         var is_selected = _via_canvas_regions[i].is_user_selected;
+        var use_stroke = null;
+        var use_fill = null;
+
+        // --------- Which color to use as outline?
+        // Choose different colors for different regions, UNLESS the regions belong to the same instance
+        if (!is_selected && _via_img_metadata[_via_image_id].regions[i]) {
+            // What is the instance_id of this person?
+            var r = _via_img_metadata[_via_image_id].regions[i].region_attributes;
+            if (r.has('instance_id')) {
+                var instance_id = r.get('instance_id');
+                // instance_id is of the format "p_<n>" where n \in [0, 9]
+                var r_split = instance_id.split('_');
+                var i_idx = r_split[1];
+                use_stroke = region_color_palette[i_idx];
+            } else if (r.has('crowd')) {
+                use_stroke = '#ffe600';
+                use_fill = '#ffe600';
+            }
+        }
 
         switch( attr.get('name') ) {
         case VIA_REGION_SHAPE.RECT:
@@ -2880,7 +2969,8 @@ function draw_all_regions() {
         case VIA_REGION_SHAPE.POLYGON:
             _via_draw_polygon_region(attr.get('all_points_x'),
                                      attr.get('all_points_y'),
-                                     is_selected);
+                                     is_selected,
+                                     use_stroke);
             break;
         case VIA_REGION_SHAPE.POINT:
             _via_draw_point_region(attr.get('cx'),
@@ -3048,7 +3138,7 @@ function _via_draw_ellipse(cx, cy, rx, ry) {
 
 }
 
-function _via_draw_polygon_region(all_points_x, all_points_y, is_selected) {
+function _via_draw_polygon_region(all_points_x, all_points_y, is_selected, use_stroke = null) {
     if ( is_selected ) {
         _via_reg_ctx.beginPath();
         _via_reg_ctx.moveTo(all_points_x[0], all_points_y[0]);
@@ -3070,7 +3160,12 @@ function _via_draw_polygon_region(all_points_x, all_points_y, is_selected) {
     } else {
         for ( var i=1; i < all_points_x.length; ++i ) {
             // draw a fill line
-            _via_reg_ctx.strokeStyle = VIA_THEME_BOUNDARY_FILL_COLOR;
+            if (use_stroke == null) {
+                _via_reg_ctx.strokeStyle = VIA_THEME_BOUNDARY_FILL_COLOR;
+            }
+            else {
+                _via_reg_ctx.strokeStyle = use_stroke;
+            }
             _via_reg_ctx.lineWidth   = VIA_THEME_REGION_BOUNDARY_WIDTH/2;
             _via_reg_ctx.beginPath();
             _via_reg_ctx.moveTo(all_points_x[i-1], all_points_y[i-1]);
@@ -3614,7 +3709,7 @@ window.addEventListener('keydown', function(e) {
     // user commands
     if ( e.ctrlKey ) {
         if ( e.which === 83 ) { // Ctrl + s
-            download_all_region_data('csv');
+            download_all_region_data('json');
             e.preventDefault();
             return;
         }
@@ -3660,6 +3755,100 @@ window.addEventListener('keydown', function(e) {
         e.preventDefault();
         return;
     }
+    // Tag instances
+    if (e.which >= 48 && e.which < 57) {
+        var keycode = e.which;
+
+        // Find all selected regions
+        var sel_region_idxs = [];
+        for(i = 0; i < _via_canvas_regions.length; i++) {
+            var is_selected = _via_canvas_regions[i].is_user_selected;
+            if (is_selected) {
+                sel_region_idxs.push(i);
+            }
+        }
+        // Update region attributes for the selected regions
+        for (i = 0; i < sel_region_idxs.length; i++) {
+            var attr_id = 'r#instance_id#' + sel_region_idxs[i];
+            var value = 'p_' + String.fromCharCode(keycode);
+
+            // console.log('[keydown] attr_id = ' + attr_id);
+            // console.log('[keydown] value = ' + value);
+            update_attribute_value(attr_id, value);
+        }
+    }
+
+    // Label CROWD
+    if (e.which == 67) {
+
+        // Find all selected regions
+        var sel_region_idxs = [];
+        for(i = 0; i < _via_canvas_regions.length; i++) {
+            var is_selected = _via_canvas_regions[i].is_user_selected;
+            if (is_selected) {
+                sel_region_idxs.push(i);
+            }
+        }
+        // Update region attributes for the selected regions
+        for (i = 0; i < sel_region_idxs.length; i++) {
+            var attr_id = 'r#is_crowd#' + sel_region_idxs[i];
+            var value = 'crowd';
+
+            update_attribute_value(attr_id, value);
+        }
+    }
+
+    // Label RELATION
+    if (e.which == 82) {
+
+        // Find all selected regions
+        var sel_region_idxs = [];
+        for(i = 0; i < _via_canvas_regions.length; i++) {
+            var is_selected = _via_canvas_regions[i].is_user_selected;
+            if (is_selected) {
+                sel_region_idxs.push(i);
+            }
+        }
+        // Update region attributes for the selected regions
+        for (i = 0; i < sel_region_idxs.length; i++) {
+            var attr_id = 'r#relation#' + sel_region_idxs[i];
+            var value = 'relation';
+
+            update_attribute_value(attr_id, value);
+        }
+    }
+
+    // Label as UNSURE
+    if (e.which == 85) {
+
+        // Find all selected regions
+        var sel_region_idxs = [];
+        for(i = 0; i < _via_canvas_regions.length; i++) {
+            var is_selected = _via_canvas_regions[i].is_user_selected;
+            if (is_selected) {
+                sel_region_idxs.push(i);
+            }
+        }
+        // Update region attributes for the selected regions
+        for (i = 0; i < sel_region_idxs.length; i++) {
+            var attr_id = 'r#unsure#' + sel_region_idxs[i];
+            var value = 'unsure';
+
+            update_attribute_value(attr_id, value);
+        }
+    }
+
+    // Display reference head
+//    if (e.which == 72) {
+//        if (!_via_draw_head_loaded) {
+//            _via_draw_head_canvas();
+//            return;
+//        } else {
+//            _via_redraw_img_canvas();
+//            _via_draw_head_loaded = false;
+//            return;
+//        }
+//    }
 
     // zoom
     if (_via_current_image_loaded) {
@@ -4283,14 +4472,14 @@ function update_attributes_panel(type) {
 
 function update_region_attributes_input_panel() {
     init_spreadsheet_input('region_attributes',
-                           _via_region_attributes,
+                           new Set([..._via_region_attributes, ...def_region_attr_keys]),
                            _via_img_metadata[_via_image_id].regions);
 
 }
 
 function update_file_attributes_input_panel() {
     init_spreadsheet_input('file_attributes',
-                           _via_file_attributes,
+                           new Set([..._via_file_attributes, ...def_file_attr_keys]),
                            [_via_img_metadata[_via_image_id].file_attributes],
                            [_via_current_image_filename]);
 }
@@ -4377,7 +4566,10 @@ function update_vertical_space() {
     panel.style.height = attributes_panel.offsetHeight+'px';
 }
 
+// For regions, attr_id is of the format: r#col_name#[0, N]
 function update_attribute_value(attr_id, value) {
+    console.log('attr_id = ' + attr_id);
+    console.log('value   = ' + value);
     var attr_id_split = attr_id.split('#');
     var type = attr_id_split[0];
     var attribute_name = attr_id_split[1];
@@ -4426,6 +4618,9 @@ function add_new_attribute(type, attribute_name) {
 //
 //function _via_hook_next_image() {}
 //function _via_hook_prev_image() {}
+    </script>
+    <script type="text/javascript">
+      //<!--AUTO_INSERT_VIA_TEST_JS_HERE-->
     </script>
 
     <!--
