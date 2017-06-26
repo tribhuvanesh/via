@@ -930,7 +930,7 @@ var region_color_palette = ['#ff004d',
     '#910000',
     '#3300ff',
     '#499100',
-    '#ffa6a6'
+    '#ffa6a6',
     '#ffe600',];
 
 // message
@@ -2166,6 +2166,9 @@ _via_reg_canvas.addEventListener('mouseup', function(e) {
     var click_dx = Math.abs(_via_click_x1 - _via_click_x0);
     var click_dy = Math.abs(_via_click_y1 - _via_click_y0);
 
+    // Store timestamp of each click when it is (a) first (b) subsequent or (c) end points of a new region
+    var milliseconds = (new Date).getTime();
+
     // indicates that user has finished moving a region
     if ( _via_is_user_moving_region ) {
         _via_is_user_moving_region = false;
@@ -2371,6 +2374,9 @@ _via_reg_canvas.addEventListener('mouseup', function(e) {
             var fy0 = _via_canvas_regions[_via_current_polygon_region_id].shape_attributes.get('all_points_y')[0];
             var  dx = (fx0 - canvas_x0);
             var  dy = (fy0 - canvas_y0);
+
+            _via_canvas_regions[_via_current_polygon_region_id].shape_attributes.get('all_ts').push(milliseconds);
+
             if ( Math.sqrt(dx*dx + dy*dy) <= VIA_POLYGON_VERTEX_MATCH_TOL ) {
                 // user clicked on the first polygon point to close the path
                 _via_is_user_drawing_polygon = false;
@@ -2378,6 +2384,7 @@ _via_reg_canvas.addEventListener('mouseup', function(e) {
                 // add all polygon points stored in _via_canvas_regions[]
                 var all_points_x = _via_canvas_regions[_via_current_polygon_region_id].shape_attributes.get('all_points_x').slice(0);
                 var all_points_y = _via_canvas_regions[_via_current_polygon_region_id].shape_attributes.get('all_points_y').slice(0);
+                var all_ts = _via_canvas_regions[_via_current_polygon_region_id].shape_attributes.get('all_ts');
                 var canvas_all_points_x = _via_canvas_regions[_via_current_polygon_region_id].shape_attributes.get('all_points_x');
                 var canvas_all_points_y = _via_canvas_regions[_via_current_polygon_region_id].shape_attributes.get('all_points_y');
 
@@ -2401,6 +2408,7 @@ _via_reg_canvas.addEventListener('mouseup', function(e) {
                 //polygon_region.shape_attributes.set('points', points_str);
                 polygon_region.shape_attributes.set('all_points_x', all_points_x);
                 polygon_region.shape_attributes.set('all_points_y', all_points_y);
+                polygon_region.shape_attributes.set('all_ts', all_ts);
                 _via_current_polygon_region_id = _via_img_metadata[_via_image_id].regions.length;
                 _via_img_metadata[_via_image_id].regions.push(polygon_region);
 
@@ -2450,6 +2458,7 @@ _via_reg_canvas.addEventListener('mouseup', function(e) {
                         canvas_polygon_region.shape_attributes.set('name', VIA_REGION_SHAPE.POLYGON);
                         canvas_polygon_region.shape_attributes.set('all_points_x', [Math.round(_via_click_x0)]);
                         canvas_polygon_region.shape_attributes.set('all_points_y', [Math.round(_via_click_y0)]);
+                        canvas_polygon_region.shape_attributes.set('all_ts', [milliseconds]);
                         _via_canvas_regions.push(canvas_polygon_region);
                         _via_current_polygon_region_id =_via_canvas_regions.length - 1;
                         break;
@@ -2941,7 +2950,6 @@ function draw_all_regions() {
                 use_stroke = region_color_palette[i_idx];
             } else if (r.has('crowd')) {
                 use_stroke = '#ffe600';
-                use_fill = '#ffe600';
             }
         }
 
