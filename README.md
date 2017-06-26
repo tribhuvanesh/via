@@ -9,6 +9,9 @@ Visit the [VGG software page](http://www.robots.ox.ac.uk/~vgg/software/via/) for
 VGG Face Annotator (VFA) is a fork of VIA adapated for marking and tagging 
 facial regions.
 
+Changes in this fork:
+  * Support for instance-level masks
+
 ## Features:
   * based solely on HTML, CSS and Javascript (no external javascript libraries)
   * can be used off-line (full application in a single html file of size &lt; 200KB)
