@@ -3753,7 +3753,8 @@ window.addEventListener('keydown', function(e) {
         e.preventDefault();
         return;
     }
-    if (e.which === 80 || e.which === 37) { // n or right arrow
+    // if (e.which === 80 || e.which === 37) { // n or right arrow
+    if (e.which === 37) { // n or right arrow
         move_to_prev_image();
         e.preventDefault();
         return;
@@ -3786,23 +3787,38 @@ window.addEventListener('keydown', function(e) {
         }
     }
 
+    if (e.which == 82) {  // "r"
+        select_region_shape('rect');
+        return;
+    }
+    if (e.which == 80) {   // "p"
+        select_region_shape('polygon');
+        return;
+    }
+    if (e.which == 67) {   // "c"
+        select_region_shape('circle');
+        return;
+    }
+
     // Label CROWD
-    if (e.which == 67) {
+    if (e.shiftKey) {
+        if (e.which == 67) {
 
-        // Find all selected regions
-        var sel_region_idxs = [];
-        for(i = 0; i < _via_canvas_regions.length; i++) {
-            var is_selected = _via_canvas_regions[i].is_user_selected;
-            if (is_selected) {
-                sel_region_idxs.push(i);
+            // Find all selected regions
+            var sel_region_idxs = [];
+            for (i = 0; i < _via_canvas_regions.length; i++) {
+                var is_selected = _via_canvas_regions[i].is_user_selected;
+                if (is_selected) {
+                    sel_region_idxs.push(i);
+                }
             }
-        }
-        // Update region attributes for the selected regions
-        for (i = 0; i < sel_region_idxs.length; i++) {
-            var attr_id = 'r#is_crowd#' + sel_region_idxs[i];
-            var value = 'crowd';
+            // Update region attributes for the selected regions
+            for (i = 0; i < sel_region_idxs.length; i++) {
+                var attr_id = 'r#is_crowd#' + sel_region_idxs[i];
+                var value = 'crowd';
 
-            update_attribute_value(attr_id, value);
+                update_attribute_value(attr_id, value);
+            }
         }
     }
 
