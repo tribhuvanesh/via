@@ -2948,7 +2948,7 @@ function draw_all_regions() {
                 var r_split = instance_id.split('_');
                 var i_idx = r_split[1];
                 use_stroke = region_color_palette[i_idx];
-            } else if (r.has('crowd')) {
+            } else if (r.has('is_crowd')) {
                 use_stroke = '#ffe600';
             }
         }
@@ -3801,26 +3801,24 @@ window.addEventListener('keydown', function(e) {
     }
 
     // Label CROWD
-    if (e.shiftKey) {
-        if (e.which == 67) {
+      if (e.which == 73) {
 
-            // Find all selected regions
-            var sel_region_idxs = [];
-            for (i = 0; i < _via_canvas_regions.length; i++) {
-                var is_selected = _via_canvas_regions[i].is_user_selected;
-                if (is_selected) {
-                    sel_region_idxs.push(i);
-                }
-            }
-            // Update region attributes for the selected regions
-            for (i = 0; i < sel_region_idxs.length; i++) {
-                var attr_id = 'r#is_crowd#' + sel_region_idxs[i];
-                var value = 'crowd';
+          // Find all selected regions
+          var sel_region_idxs = [];
+          for (i = 0; i < _via_canvas_regions.length; i++) {
+              var is_selected = _via_canvas_regions[i].is_user_selected;
+              if (is_selected) {
+                  sel_region_idxs.push(i);
+              }
+          }
+          // Update region attributes for the selected regions
+          for (i = 0; i < sel_region_idxs.length; i++) {
+              var attr_id = 'r#is_crowd#' + sel_region_idxs[i];
+              var value = 'crowd';
 
-                update_attribute_value(attr_id, value);
-            }
-        }
-    }
+              update_attribute_value(attr_id, value);
+          }
+      }
 
     // Label RELATION
     if (e.which == 82) {
